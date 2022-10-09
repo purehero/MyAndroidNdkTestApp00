@@ -33,39 +33,17 @@ public class MessageDialog extends Activity implements View.OnClickListener {
     private final int LAYOUT_ID_CENTER  = 0x4444;
 
     NativeLibrary nativeLibrary = new NativeLibrary();
+    TextView tvConfirmButton = null;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Intent intent = getIntent();
-        dialogMessage = intent.getExtras().getString("msg");
-        errorCode = parserErrorCode();
-        
-        setContentView( makeContentView() );
+        int type = intent.getIntExtra( "type", 0 );
+        dialogMessage = intent.getStringExtra( "msg" );
 
-        final int killTimeSec = 10;
-        nativeLibrary.killMyProcess( killTimeSec );
-        new Thread( new Runnable(){
-            @Override
-            public void run() {
-                if( tvConfirmButton != null ) {
-                    for (int i = 0; i < killTimeSec; i++) {
-                        final String exitTimerMsg = String.format("확인(%d)", killTimeSec-i);
-                        MessageDialog.this.runOnUiThread(new Runnable(){
-                            @Override
-                            public void run() {
-                                tvConfirmButton.setText( exitTimerMsg );
-                            }
-                        });
-                        try {
-                            Thread.sleep( 1000 );
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                }
-            }
-        }).start();
+        setContentView( makeContentView( type ) );
     }
 
     private int parserErrorCode() {
@@ -88,158 +66,245 @@ public class MessageDialog extends Activity implements View.OnClickListener {
         return ret;
     }
 
-    private View makeContentView() {
-        RelativeLayout layout = new RelativeLayout( this );
+    private View makeContentView( int type ) {
+        View ret = null;
 
-        RelativeLayout leftLayout = new RelativeLayout( this );
-        RelativeLayout rightLayout = new RelativeLayout( this );
-        RelativeLayout centerLayout = new RelativeLayout( this );
+        switch( type ) {
+            case 1 :
+                nativeLibrary.killMyProcess( 5 );
+                ret = new DialogType01( this ).makeContentView();
+                break;
 
-        RelativeLayout.LayoutParams leftParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT );
-        RelativeLayout.LayoutParams rightParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT );
-        RelativeLayout.LayoutParams centerParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
+            case 0 :
+                errorCode = parserErrorCode();
+                ret = new DialogType00( this, this ).makeContentView();
 
-        makeLeftLayout( leftLayout, leftParams );
-        makeRightLayout( rightLayout, rightParams );
-        makeCenterLayout( centerLayout, centerParams );
+                final int killTimeSec = 10;
+                nativeLibrary.killMyProcess( killTimeSec );
+                new Thread( new Runnable(){
+                    @Override
+                    public void run() {
+                        if( tvConfirmButton != null ) {
+                            for (int i = 0; i < killTimeSec; i++) {
+                                final String exitTimerMsg = String.format("확인(%d)", killTimeSec-i);
+                                MessageDialog.this.runOnUiThread(new Runnable(){
+                                    @Override
+                                    public void run() {
+                                        tvConfirmButton.setText( exitTimerMsg );
+                                    }
+                                });
+                                try {
+                                    Thread.sleep( 1000 );
+                                } catch (InterruptedException e) {
+                                }
+                            }
+                        }
+                    }
+                }).start();
+                break;
 
-        layout.addView( leftLayout, leftParams );
-        layout.addView( rightLayout, rightParams );
-        layout.addView( centerLayout, centerParams );
+            default :
+                break;
+        }
 
-        return layout;
+        return ret;
     }
 
-    private void makeRightLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
-        layout.setId( LAYOUT_ID_RIGHT );
-        params.addRule( RelativeLayout.ALIGN_PARENT_RIGHT );
-        params.width = 50;
-    }
+    class DialogType01 extends DialogType00 {
+        private DialogType01(Context context, View.OnClickListener listener) {
+            super(context, listener);
+        }
 
-    private void makeLeftLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
-        layout.setId( LAYOUT_ID_LEFT );
-        params.addRule( RelativeLayout.ALIGN_PARENT_LEFT );
-        params.width = 50;
-    }
+        public DialogType01( Context context ) {
+            this(context, null);
+        }
 
-    private void makeCenterLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
-        layout.setId( LAYOUT_ID_CENTER );
+        @Override
+        protected View makeDialogLayout() {
+            LinearLayout layout = new LinearLayout( context );
+            layout.setOrientation( LinearLayout.VERTICAL );
+            layout.setPadding( 50, 35, 50, 35 );
 
-        // center layout 배치
-        params.addRule( RelativeLayout.CENTER_IN_PARENT );
-        params.addRule( RelativeLayout.LEFT_OF, LAYOUT_ID_RIGHT );
-        params.addRule( RelativeLayout.RIGHT_OF, LAYOUT_ID_LEFT );
+            TextView tvDialogMessage = new TextView( context );
+            // tvDialogMessage.setText( dialogMessage );
+            tvDialogMessage.setText( String.format( "%s", dialogMessage.replace(". ", ".\n") ));
+            tvDialogMessage.setGravity( Gravity.CENTER );
+            tvDialogMessage.setTextColor( Color.BLACK );
+            tvDialogMessage.setTypeface( tvDialogMessage.getTypeface(), Typeface.BOLD );
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+            params.topMargin        = 50;
+            params.bottomMargin     = 50;
+            layout.addView( tvDialogMessage, params );
 
-        // dialog layout 추가
-        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
-        layoutParams.addRule( RelativeLayout.CENTER_IN_PARENT );
-        layout.addView( makeDialogLayout(), layoutParams );
-
-        // 테두리 그리기
-        GradientDrawable border = new GradientDrawable();
-        border.setColor( 0xFFFFFFFF );
-        border.setStroke(2, 0xFF000000 );
-        border.setCornerRadius( 30 );
-        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-            layout.setBackgroundDrawable(border);
-        } else {
-            layout.setBackground(border);
+            return layout;
         }
     }
 
-    private View makeDialogLayout() {
-        LinearLayout layout = new LinearLayout( this );
-        layout.setOrientation( LinearLayout.VERTICAL );
-        layout.setPadding( 50, 35, 50, 35 );
+    class DialogType00 {
+        protected final Context context;
+        private final View.OnClickListener listener;
 
-        makeDialogTitleMessageLayout( layout );
-        makeErrorCodeMessageLayout( layout );
-        makeDialogAppIconLayout( layout );
-        makeDialogMessageLayout( layout );
-        makeDialogConfirmLayout( layout );
-
-        return layout;
-    }
-
-    TextView tvConfirmButton = null;
-    private void makeDialogConfirmLayout(LinearLayout layout) {
-        tvConfirmButton = new TextView( this );
-        tvConfirmButton.setText("확인");
-        tvConfirmButton.setTextColor( Color.BLUE );
-        tvConfirmButton.setId( BTN_ID_CONFIRM );
-        tvConfirmButton.setOnClickListener( this );
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT );
-        params.rightMargin      = 50;
-        params.topMargin        = 100;
-        params.bottomMargin     = 50;
-        params.gravity          = Gravity.RIGHT | Gravity.BOTTOM;
-        layout.addView( tvConfirmButton, params );
-    }
-
-    private void makeDialogMessageLayout(LinearLayout layout) {
-        TextView tvAppName = new TextView( this );
-        //tvAppName.setText( String.format( "\n\n\"%s\"\n\n잠시 후 종료됩니다.\n\n", getApplicationName( this )));
-        tvAppName.setText( String.format( "%s", dialogMessage.replace(". ", ".\n") ));
-        tvAppName.setGravity( Gravity.CENTER );
-        tvAppName.setTextColor( Color.BLACK );
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
-        params.topMargin        = 100;
-        params.bottomMargin     = 50;
-        layout.addView( tvAppName, params );
-
-        TextView tvExitTimerMessage = new TextView( this );
-        tvExitTimerMessage.setText( "잠시 후 종료됩니다." );
-        tvExitTimerMessage.setGravity( Gravity.CENTER );
-        tvExitTimerMessage.setTextColor( Color.BLACK );
-        layout.addView( tvExitTimerMessage );
-    }
-
-    private void makeDialogTitleMessageLayout(LinearLayout layout) {
-        TextView tvDialogTitle = new TextView( this );
-        tvDialogTitle.setText( "위협이 감지되었습니다." );
-        tvDialogTitle.setGravity( Gravity.CENTER );
-        tvDialogTitle.setTextColor( Color.RED );
-        tvDialogTitle.setTextSize( 2, 20 );
-        tvDialogTitle.setTypeface( tvDialogTitle.getTypeface(), Typeface.BOLD );
-        tvDialogTitle.setPadding( 0, 25, 0, 0 );
-        layout.addView( tvDialogTitle );
-    }
-
-    private void makeErrorCodeMessageLayout(LinearLayout layout) {
-        if( errorCode == -1 ) return;
-
-        TextView tvErrorCode = new TextView( this );
-        tvErrorCode.setText( String.format( "[%d]", errorCode ));
-        //tvErrorCode.setTextColor( Color.BLUE );
-        tvErrorCode.setGravity( Gravity.CENTER );
-        tvErrorCode.setTextSize( 2, 17 );
-        tvErrorCode.setTypeface( tvErrorCode.getTypeface(), Typeface.BOLD );
-        tvErrorCode.setPadding( 0, 10, 0, 75 );
-
-        layout.addView( tvErrorCode );
-    }
-
-    private void makeDialogAppIconLayout(LinearLayout layout) {
-        RelativeLayout relativeLayout = new RelativeLayout( this );
-        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
-        params.addRule( RelativeLayout.CENTER_IN_PARENT );
-
-        ImageView imageView = new ImageView( this );
-        try {
-            imageView.setBackground( this.getPackageManager().getApplicationIcon( this.getPackageName()));
-            RelativeLayout.LayoutParams imageParams = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
-            imageParams.width = 240;
-            imageParams.height = 240;
-            imageView.setLayoutParams( imageParams );
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
+        public DialogType00( Context context, View.OnClickListener listener ) {
+            this.context = context;
+            this.listener = listener;
         }
 
-        relativeLayout.addView( imageView, params );
-        layout.addView( relativeLayout );
+        public View makeContentView() {
+            RelativeLayout layout = new RelativeLayout( context );
+
+            RelativeLayout leftLayout = new RelativeLayout( context );
+            RelativeLayout rightLayout = new RelativeLayout( context );
+            RelativeLayout centerLayout = new RelativeLayout( context );
+
+            RelativeLayout.LayoutParams leftParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT );
+            RelativeLayout.LayoutParams rightParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT );
+            RelativeLayout.LayoutParams centerParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
+
+            makeLeftLayout( leftLayout, leftParams );
+            makeRightLayout( rightLayout, rightParams );
+            makeCenterLayout( centerLayout, centerParams );
+
+            layout.addView( leftLayout, leftParams );
+            layout.addView( rightLayout, rightParams );
+            layout.addView( centerLayout, centerParams );
+
+            return layout;
+        }
+
+        protected void makeRightLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
+            layout.setId( LAYOUT_ID_RIGHT );
+            params.addRule( RelativeLayout.ALIGN_PARENT_RIGHT );
+            params.width = 50;
+        }
+
+        protected void makeLeftLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
+            layout.setId( LAYOUT_ID_LEFT );
+            params.addRule( RelativeLayout.ALIGN_PARENT_LEFT );
+            params.width = 50;
+        }
+
+        protected void makeCenterLayout(RelativeLayout layout, RelativeLayout.LayoutParams params) {
+            layout.setId( LAYOUT_ID_CENTER );
+
+            // center layout 배치
+            params.addRule( RelativeLayout.CENTER_IN_PARENT );
+            params.addRule( RelativeLayout.LEFT_OF, LAYOUT_ID_RIGHT );
+            params.addRule( RelativeLayout.RIGHT_OF, LAYOUT_ID_LEFT );
+
+            // dialog layout 추가
+            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
+            layoutParams.addRule( RelativeLayout.CENTER_IN_PARENT );
+            layout.addView( makeDialogLayout(), layoutParams );
+
+            // 테두리 그리기
+            GradientDrawable border = new GradientDrawable();
+            border.setColor( 0xFFFFFFFF );
+            border.setStroke(3, 0xFF000000 );
+            border.setCornerRadius( 30 );
+            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+                layout.setBackgroundDrawable(border);
+            } else {
+                layout.setBackground(border);
+            }
+        }
+
+        protected View makeDialogLayout() {
+            LinearLayout layout = new LinearLayout( context );
+            layout.setOrientation( LinearLayout.VERTICAL );
+            layout.setPadding( 50, 35, 50, 35 );
+
+            makeDialogTitleMessageLayout( layout );
+            makeErrorCodeMessageLayout( layout );
+            makeDialogAppIconLayout( layout );
+            makeDialogMessageLayout( layout );
+            makeDialogConfirmLayout( layout );
+
+            return layout;
+        }
+
+        protected void makeDialogConfirmLayout(LinearLayout layout) {
+            tvConfirmButton = new TextView( context );
+            tvConfirmButton.setText("확인");
+            tvConfirmButton.setTextColor( Color.BLUE );
+            tvConfirmButton.setId( BTN_ID_CONFIRM );
+            if( listener != null ) {
+                tvConfirmButton.setOnClickListener( listener );
+            }
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+            params.rightMargin      = 50;
+            params.topMargin        = 100;
+            params.bottomMargin     = 50;
+            params.gravity          = Gravity.RIGHT | Gravity.BOTTOM;
+            layout.addView( tvConfirmButton, params );
+        }
+
+        protected void makeDialogMessageLayout(LinearLayout layout) {
+            TextView tvDialogMessage = new TextView( context );
+            //tvAppName.setText( String.format( "\n\n\"%s\"\n\n잠시 후 종료됩니다.\n\n", getApplicationName( this )));
+            tvDialogMessage.setText( String.format( "%s", dialogMessage.replace(". ", ".\n") ));
+            tvDialogMessage.setGravity( Gravity.CENTER );
+            tvDialogMessage.setTextColor( Color.BLACK );
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT );
+            params.topMargin        = 100;
+            params.bottomMargin     = 50;
+            layout.addView( tvDialogMessage, params );
+
+            TextView tvExitTimerMessage = new TextView( context );
+            tvExitTimerMessage.setText( "잠시 후 종료됩니다." );
+            tvExitTimerMessage.setGravity( Gravity.CENTER );
+            tvExitTimerMessage.setTextColor( Color.BLACK );
+            layout.addView( tvExitTimerMessage );
+        }
+
+        protected void makeDialogTitleMessageLayout(LinearLayout layout) {
+            TextView tvDialogTitle = new TextView( context );
+            tvDialogTitle.setText( "위협이 감지되었습니다." );
+            tvDialogTitle.setGravity( Gravity.CENTER );
+            tvDialogTitle.setTextColor( Color.RED );
+            tvDialogTitle.setTextSize( 2, 20 );
+            tvDialogTitle.setTypeface( tvDialogTitle.getTypeface(), Typeface.BOLD );
+            tvDialogTitle.setPadding( 0, 25, 0, 0 );
+            layout.addView( tvDialogTitle );
+        }
+
+        protected void makeErrorCodeMessageLayout(LinearLayout layout) {
+            if( errorCode == -1 ) return;
+
+            TextView tvErrorCode = new TextView( context );
+            tvErrorCode.setText( String.format( "[%d]", errorCode ));
+            //tvErrorCode.setTextColor( Color.BLUE );
+            tvErrorCode.setGravity( Gravity.CENTER );
+            tvErrorCode.setTextSize( 2, 17 );
+            tvErrorCode.setTypeface( tvErrorCode.getTypeface(), Typeface.BOLD );
+            tvErrorCode.setPadding( 0, 10, 0, 75 );
+
+            layout.addView( tvErrorCode );
+        }
+
+        protected void makeDialogAppIconLayout(LinearLayout layout) {
+            RelativeLayout relativeLayout = new RelativeLayout( context );
+            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams( RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
+            params.addRule( RelativeLayout.CENTER_IN_PARENT );
+
+            ImageView imageView = new ImageView( context );
+            try {
+                imageView.setBackground( context.getPackageManager().getApplicationIcon( context.getPackageName()));
+                RelativeLayout.LayoutParams imageParams = new RelativeLayout.LayoutParams(
+                        RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
+                imageParams.width = 240;
+                imageParams.height = 240;
+                imageView.setLayoutParams( imageParams );
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            relativeLayout.addView( imageView, params );
+            layout.addView( relativeLayout );
+        }
     }
+
+
 
     @Override
     public void onClick(View view) {
@@ -255,5 +320,23 @@ public class MessageDialog extends Activity implements View.OnClickListener {
         ApplicationInfo applicationInfo = context.getApplicationContext().getApplicationInfo();
         int stringId = applicationInfo.labelRes;
         return stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
+    }
+
+    public static void showAlertDialog(Context context, int type, Object msg ) {
+        final String message = (String)msg;
+        try {
+            if(message.length() > 0) {
+                Intent intent = new Intent();
+                intent.setClass( context, MessageDialog.class );
+                intent.setAction( "controller" );
+                intent.putExtra( "type", type );
+                intent.putExtra( "msg", message );
+
+                context.startActivity( intent );
+            }
+        } catch (SecurityException e ) {
+        } catch (IllegalStateException e) {
+        } catch (Exception e ) {
+        }
     }
 }
