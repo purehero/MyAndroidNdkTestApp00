@@ -7,11 +7,14 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -37,6 +40,7 @@ public class MessageDialog extends Activity implements View.OnClickListener {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        setTheme(android.R.style.Theme_Translucent_NoTitleBar);
         super.onCreate(savedInstanceState);
 
         Intent intent = getIntent();
@@ -331,7 +335,8 @@ public class MessageDialog extends Activity implements View.OnClickListener {
                 intent.setAction( "controller" );
                 intent.putExtra( "type", type );
                 intent.putExtra( "msg", message );
-
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 context.startActivity( intent );
             }
         } catch (SecurityException e ) {

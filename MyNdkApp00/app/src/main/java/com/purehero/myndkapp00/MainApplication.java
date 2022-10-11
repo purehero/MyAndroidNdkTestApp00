@@ -22,6 +22,7 @@ import androidx.annotation.NonNull;
 import com.purehero.myndkapp00.detect.mirror.MyDisplayManagerCallback;
 import com.purehero.myndkapp00.detect.mirror.MyMediaRouterCallback;
 import com.purehero.myndkapp00.detect.mirror.MyTestCode;
+import com.purehero.myndkapp00.dialog.MessageDialog;
 import com.purehero.myndkapp00.test.MyTestClass00;
 
 public class MainApplication extends Application {
