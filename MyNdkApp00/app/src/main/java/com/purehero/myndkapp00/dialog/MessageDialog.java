@@ -35,7 +35,6 @@ public class MessageDialog extends Activity implements View.OnClickListener {
     private final int LAYOUT_ID_RIGHT   = 0x3333;
     private final int LAYOUT_ID_CENTER  = 0x4444;
 
-    NativeLibrary nativeLibrary = new NativeLibrary();
     TextView tvConfirmButton = null;
 
     @Override
@@ -75,7 +74,6 @@ public class MessageDialog extends Activity implements View.OnClickListener {
 
         switch( type ) {
             case 1 :
-                nativeLibrary.killMyProcess( 5 );
                 ret = new DialogType01( this ).makeContentView();
                 break;
 
@@ -84,13 +82,12 @@ public class MessageDialog extends Activity implements View.OnClickListener {
                 ret = new DialogType00( this, this ).makeContentView();
 
                 final int killTimeSec = 10;
-                nativeLibrary.killMyProcess( killTimeSec );
                 new Thread( new Runnable(){
                     @Override
                     public void run() {
                         if( tvConfirmButton != null ) {
                             for (int i = 0; i < killTimeSec; i++) {
-                                final String exitTimerMsg = String.format("확인(%d)", killTimeSec-i);
+                                final String exitTimerMsg = String.format("%s(%d)", getResources().getString( android.R.string.yes ), killTimeSec-i);
                                 MessageDialog.this.runOnUiThread(new Runnable(){
                                     @Override
                                     public void run() {
@@ -102,6 +99,9 @@ public class MessageDialog extends Activity implements View.OnClickListener {
                                 } catch (InterruptedException e) {
                                 }
                             }
+
+                            finish();
+                            exitProcess();
                         }
                     }
                 }).start();
@@ -109,6 +109,10 @@ public class MessageDialog extends Activity implements View.OnClickListener {
 
             default :
                 break;
+        }
+
+        if( ret != null ) {
+            ret.setBackgroundColor( 0x80000000 );
         }
 
         return ret;
@@ -228,7 +232,7 @@ public class MessageDialog extends Activity implements View.OnClickListener {
 
         protected void makeDialogConfirmLayout(LinearLayout layout) {
             tvConfirmButton = new TextView( context );
-            tvConfirmButton.setText("확인");
+            tvConfirmButton.setText( context.getResources().getString( android.R.string.yes ) );
             tvConfirmButton.setTextColor( Color.BLUE );
             tvConfirmButton.setId( BTN_ID_CONFIRM );
             if( listener != null ) {
@@ -314,10 +318,15 @@ public class MessageDialog extends Activity implements View.OnClickListener {
     public void onClick(View view) {
         switch( view.getId()) {
             case BTN_ID_CONFIRM :
-                // finish();
-                nativeLibrary.killMyProcess( 0 );
+                finish();
+                exitProcess();
                 break;
         }
+    }
+
+    private void exitProcess() {
+        NativeLibrary nativeLibrary = new NativeLibrary();
+        nativeLibrary.killMyProcess( 0 );
     }
 
     private String getApplicationName( Context context ) {
@@ -335,9 +344,12 @@ public class MessageDialog extends Activity implements View.OnClickListener {
                 intent.setAction( "controller" );
                 intent.putExtra( "type", type );
                 intent.putExtra( "msg", message );
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                //intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 context.startActivity( intent );
+
+                NativeLibrary nativeLibrary = new NativeLibrary();
+                nativeLibrary.killMyProcess( 5 );
             }
         } catch (SecurityException e ) {
         } catch (IllegalStateException e) {

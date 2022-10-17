@@ -24,7 +24,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".dialog.MessageDialog" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".dialog.MessageDialog" android:process=":alert_dialog" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".dialog.AppSealingAlertDialog" android:process=":alert_dialog" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service android:name=".dialog.MessageService" />
         <service
             android:name=".MyIsolatedService"
