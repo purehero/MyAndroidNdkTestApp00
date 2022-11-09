@@ -4,43 +4,77 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 
 import com.purehero.myndkapp00.Utils;
 
 public class AppSealingAlertDialog extends Activity {
-
     private String  dialogMessage = "";
-    private int     dialogType = 0;
-    private boolean bShowToast = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme( android.R.style.Theme_Translucent_NoTitleBar );
         super.onCreate(savedInstanceState);
 
         Intent intent = getIntent();
-        dialogType      = intent.getIntExtra( "type", 0 );
-        bShowToast      = intent.getBooleanExtra("showToast", false );
         dialogMessage   = intent.getStringExtra( "msg" );
 
-        setContentView( makeContentView() );
+        setContentView( makeContentView( intent.getIntExtra( "type", DIALOG_TYPE_ALERT ) ) );
+
+        if( intent.getBooleanExtra("showToast", false ) ) {
+            Toast.makeText(this, dialogMessage, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        if( killTimeSec != -1 ) {   // timer 값이 변경 되었을때만 Thread 종료를 기다리도록 한다.
+            runThread = false;
+            for (int i = 0; i < 20 && !runThread; i++) {   // 2초 이내에 이전 Thread 가 종료 될때까지 대기한다.
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            outState.putInt("killTimeSec", killTimeSec);
+        }
+    }
+
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        killTimeSec = savedInstanceState.getInt( "killTimeSec", -1 );
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
     }
 
     public static final int DIALOG_TYPE_TOAST           = 0;    // 기본 Toast type
     public static final int DIALOG_TYPE_ALERT           = 1;    //
     public static final int DIALOG_TYPE_ALERT_TIMER     = 2;    //
 
-    private View makeContentView() {
+    private View makeContentView( int dialogType ) {
         View ret = null;
         switch( dialogType ) {
             case DIALOG_TYPE_TOAST : ret = new DialogTypeToast(this ).makeContentView(); break;
@@ -56,21 +90,20 @@ public class AppSealingAlertDialog extends Activity {
         return ret;
     }
 
+    private int killTimeSec = -1;
+    private boolean runThread = true;
     private class DialogTypeAlertTimer extends DialogTypeAlert implements Runnable {
-        public DialogTypeAlertTimer(Context context) {
+        public DialogTypeAlertTimer(Context context, int timeSec ) {
             super(context);
-        }
-
-        private int killTimeSec = 10;
-        public DialogTypeAlertTimer(Context context, int killTimeSec ) {
-            super(context);
-            this.killTimeSec = killTimeSec;
+            if( killTimeSec == -1 ) {
+                killTimeSec = timeSec;
+            }
         }
 
         @Override
         protected View makeDialogLayout() {
             View ret = super.makeDialogLayout();
-            new Thread( this ).start();
+            new Thread(this).start();
 
             return ret;
         }
@@ -78,16 +111,24 @@ public class AppSealingAlertDialog extends Activity {
         @Override
         public void run() {
             if( tvConfirmButton != null ) {
-                for (int i = 0; i < killTimeSec; i++) {
-                    final String exitTimerMsg = String.format("%s(%d)", getResources().getString( android.R.string.yes ), killTimeSec-i);
+                for ( ; killTimeSec > 0; killTimeSec-- ) {
                     AppSealingAlertDialog.this.runOnUiThread(new Runnable(){
                         @Override
                         public void run() {
-                            tvConfirmButton.setText( exitTimerMsg );
+                            tvConfirmButton.setText( String.format("%s(%d)", getResources().getString( android.R.string.yes ), killTimeSec ) );
                         }
                     });
                     try {
-                        Thread.sleep( 1000 );
+                        for( int i = 0; i < 10; i++ ) {
+                            Thread.sleep(100 );
+
+                            // kill timer 동작중에 단말기의 화면이 회전되는 경우 Activity가 재 시작되는데 이떄 timer thread 을 종료 시키기 위해서 사용된다.
+                            if( !runThread ) {
+                                runThread = true;
+
+                                return;
+                            }
+                        }
                     } catch (InterruptedException e) {
                     }
                 }
@@ -128,7 +169,7 @@ public class AppSealingAlertDialog extends Activity {
         }
 
         protected void makeDialogConfirmLayout(LinearLayout layout) {
-            tvConfirmButton = new TextView( context );
+            tvConfirmButton = new TextView(context);
             tvConfirmButton.setText( getResources().getString( android.R.string.yes ));
             tvConfirmButton.setTextColor( Color.BLUE );
             tvConfirmButton.setId( BTN_ID_CONFIRM );
@@ -339,7 +380,7 @@ public class AppSealingAlertDialog extends Activity {
         }
     }
 
-    public static void showAlertDialog(Context context, int type, Object msg ) {
+    public static void showAlertDialog(Context context, int type, Object msg, boolean showToast ) {
         final String message = (String)msg;
         try {
             if(message.length() > 0) {
@@ -348,6 +389,7 @@ public class AppSealingAlertDialog extends Activity {
                 intent.setAction( "controller" );
                 intent.putExtra( "type", type );
                 intent.putExtra( "msg", message );
+                intent.putExtra( "showToast", showToast );
 
                 context.startActivity( intent );
             }

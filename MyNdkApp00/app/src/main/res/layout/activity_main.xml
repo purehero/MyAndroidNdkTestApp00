@@ -48,6 +48,79 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="TEST_02 Button" />
+
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_development_enabled"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/development_option" />
+
+        <Button
+            android:id="@+id/btn_development_enabled_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_update" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_adb_enabled"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/usb_debugging" />
+
+        <Button
+            android:id="@+id/btn_adb_enabled_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_update" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_debugger_connected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/debugger_connected" />
+
+        <Button
+            android:id="@+id/btn_debugger_connected_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_update" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_turn_off_usb_debugging"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/turn_off_usb_debugging" />
+
+    <Button
+        android:id="@+id/btn_open_development_options"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/open_development_setting" />
 
 </LinearLayout>

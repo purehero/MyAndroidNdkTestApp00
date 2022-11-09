@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">MyNdkApp00</string>
+    <string name="btn_update">Update</string>
+    <string name="development_option">개발자 옵션</string>
+    <string name="usb_debugging">USB 디버깅</string>
+    <string name="debugger_connected">디버거 연결</string>
+    <string name="turn_off_usb_debugging">USB 디버깅 끄기</string>
+    <string name="open_development_setting">개발자 옵션 열기</string>
 </resources>
