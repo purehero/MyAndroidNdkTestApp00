@@ -1,6 +1,7 @@
 package com.purehero.myndkapp00.dialog;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,6 +11,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -19,11 +21,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-
-import com.purehero.myndkapp00.Utils;
-
-public class AppSealingAlertDialog extends Activity {
+public class AppSealingAlertDialog extends Activity implements Application.ActivityLifecycleCallbacks {
     private String  dialogMessage = "";
 
     @Override
@@ -33,16 +31,18 @@ public class AppSealingAlertDialog extends Activity {
 
         Intent intent = getIntent();
         dialogMessage   = intent.getStringExtra( "msg" );
+        killTimeSec     = intent.getIntExtra("killTimeSec", 10 );
 
         setContentView( makeContentView( intent.getIntExtra( "type", DIALOG_TYPE_ALERT ) ) );
-
         if( intent.getBooleanExtra("showToast", false ) ) {
             Toast.makeText(this, dialogMessage, Toast.LENGTH_LONG).show();
         }
+
+        getApplication().registerActivityLifecycleCallbacks( this );
     }
 
     @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
+    protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
         if( killTimeSec != -1 ) {   // timer 값이 변경 되었을때만 Thread 종료를 기다리도록 한다.
@@ -60,13 +60,13 @@ public class AppSealingAlertDialog extends Activity {
     }
 
     @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
         killTimeSec = savedInstanceState.getInt( "killTimeSec", -1 );
     }
 
     @Override
-    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+    public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
     }
 
@@ -79,7 +79,7 @@ public class AppSealingAlertDialog extends Activity {
         switch( dialogType ) {
             case DIALOG_TYPE_TOAST : ret = new DialogTypeToast(this ).makeContentView(); break;
             case DIALOG_TYPE_ALERT : ret = new DialogTypeAlert(this ).makeContentView(); break;
-            case DIALOG_TYPE_ALERT_TIMER: ret = new DialogTypeAlertTimer(this, 10 ).makeContentView(); break;
+            case DIALOG_TYPE_ALERT_TIMER: ret = new DialogTypeAlertTimer(this, killTimeSec ).makeContentView(); break;
             default : break;
         }
 
@@ -90,8 +90,56 @@ public class AppSealingAlertDialog extends Activity {
         return ret;
     }
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+
+        finish();
+        killMyProcess(0);
+    }
+
     private int killTimeSec = -1;
     private boolean runThread = true;
+
+    // Application.ActivityLifecycleCallbacks methods
+    @Override
+    public void onActivityCreated(Activity activity, Bundle bundle) {}
+
+    @Override
+    public void onActivityStarted(Activity activity) {}
+
+    @Override
+    public void onActivityResumed(Activity activity) {}
+
+    @Override
+    public void onActivityPaused(Activity activity) {
+        if( activity.getLocalClassName().compareTo( getLocalClassName()) == 0 ) {
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Intent intent = activity.getIntent();
+                            intent.putExtra("killTimeSec", killTimeSec);
+                            activity.startActivity( activity.getIntent());
+                        }
+                    });
+                }
+            }, 300 );
+        }
+    }
+
+    @Override
+    public void onActivityStopped(Activity activity) {}
+
+    @Override
+    public void onActivitySaveInstanceState(Activity activity, Bundle bundle) {}
+
+    @Override
+    public void onActivityDestroyed(Activity activity) {}
+    /////////////////////////////////////////////////////////////////////////
+
     private class DialogTypeAlertTimer extends DialogTypeAlert implements Runnable {
         public DialogTypeAlertTimer(Context context, int timeSec ) {
             super(context);
@@ -134,7 +182,7 @@ public class AppSealingAlertDialog extends Activity {
                 }
 
                 finish();
-                Utils.killMyProcess(0);
+                killMyProcess(0);
             }
         }
     }
@@ -165,7 +213,7 @@ public class AppSealingAlertDialog extends Activity {
         @Override
         public void onClick(View view) {
             finish();
-            Utils.killMyProcess(0);
+            killMyProcess(0);
         }
 
         protected void makeDialogConfirmLayout(LinearLayout layout) {
@@ -229,12 +277,18 @@ public class AppSealingAlertDialog extends Activity {
                 imageView.setBackground( context.getPackageManager().getApplicationIcon( context.getPackageName()));
                 RelativeLayout.LayoutParams imageParams = new RelativeLayout.LayoutParams(
                         RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT );
-                imageParams.width = 240;
-                imageParams.height = 240;
                 imageView.setLayoutParams( imageParams );
+                // in.dishtv.subscriber 앱에서 탐지시 창이 보이지 않는 증상이 확인되어 현재 구조로 변경됨.
+                //
+                // 20230329] valofe 앱에서 아이콘이 안내창을 덮어 가시성을 해치는 문제가 확인되어
+                // scaleType을 CENTER_INSIDE -> CENTER_CROP으로 조정함 (com.valofe.fish.one.kr, com.valofe.fish.google.sea)
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
             }
+
+            params.width = 200;
+            params.height = 200;
 
             relativeLayout.addView( imageView, params );
             layout.addView( relativeLayout );
@@ -290,13 +344,14 @@ public class AppSealingAlertDialog extends Activity {
         @Override
         public void run() {
             try {
-                Thread.sleep( 3000 );
+                // Toast 는 대략 3-4초 후에 표시가 사라지게 한다.
+                Thread.sleep( 3500 );
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
             finish();
-            Utils.killMyProcess(0);
+            killMyProcess(0);
         }
     };
 
@@ -391,11 +446,35 @@ public class AppSealingAlertDialog extends Activity {
                 intent.putExtra( "msg", message );
                 intent.putExtra( "showToast", showToast );
 
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);         // 해당 flag 값이 없으면 startActivity 가 안되는 앱이 있음( penguin, ... )
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY );      // 실행 목록에 추가하지 않는다.
+
                 context.startActivity( intent );
             }
         } catch (SecurityException e ) {
         } catch (IllegalStateException e) {
         } catch (Exception e ) {
+        }
+    }
+
+    private void killMyProcess( final int killTimeSec ) {
+        if( killTimeSec < 1 ) {
+            android.os.Process.killProcess(android.os.Process.myPid());
+        } else {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep( killTimeSec * 1000 );
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                }
+            }).start();
         }
     }
 }

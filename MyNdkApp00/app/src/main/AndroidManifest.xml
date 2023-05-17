@@ -30,6 +30,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".dialog.AppSealingAlertDialog" android:process=":alert_dialog" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity android:name=".SecondActivity" android:process=":login" />
 
         <service
             android:name=".MyIsolatedService"

@@ -6,4 +6,6 @@
     <string name="debugger_connected">디버거 연결</string>
     <string name="turn_off_usb_debugging">USB 디버깅 끄기</string>
     <string name="open_development_setting">개발자 옵션 열기</string>
+    <string name="top_activity_name">Top activity name</string>
+
 </resources>
